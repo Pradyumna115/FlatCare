@@ -29,7 +29,6 @@
 
       <div id="loginError" class="login-error"></div>
 
-      <!-- Step 1: Username & Password -->
       <form id="loginForm">
         <div class="form-group">
           <label for="username">Username</label>
@@ -51,64 +50,20 @@
         </button>
       </form>
 
-      <!-- Step 2: OTP Verification (hidden initially) -->
-      <div id="otpSection" style="display:none;">
-        <div class="otp-info">
-          <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none"
-            stroke="#0ea5e9" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="2" y="4" width="20" height="16" rx="2" />
-            <polyline points="22,7 12,13 2,7" />
-          </svg>
-          <p style="margin:12px 0 4px;font-weight:600;color:var(--text,#0f172a);">Check your email</p>
-          <p id="otpEmailHint" style="font-size:13px;color:#64748b;margin:0;">OTP sent to your email</p>
-        </div>
-
-        <form id="otpForm">
-          <div class="form-group">
-            <label for="otpInput">Enter 6-digit OTP</label>
-            <input type="text" id="otpInput" maxlength="6" inputmode="numeric" pattern="[0-9]*"
-              placeholder="● ● ● ● ● ●" required
-              style="text-align:center;letter-spacing:8px;font-size:24px;font-weight:700;">
-          </div>
-          <button type="submit" class="btn btn-primary" id="verifyBtn" style="width:100%;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-            Verify OTP
-          </button>
-        </form>
-
-        <div class="otp-actions">
-          <button class="btn-link" id="resendBtn" onclick="resendOTP()" disabled>
-            Resend OTP <span id="resendTimer">(60s)</span>
-          </button>
-          <button class="btn-link" onclick="backToLogin()">
-            ← Back to Sign In
-          </button>
-        </div>
-      </div>
 
     </div>
   </div>
 
   <script>
-    let currentUsername = '';
-    let resendInterval = null;
-
-    const SIGN_IN_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>';
-
-    // Step 1: Login Form
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const username = document.getElementById('username').value.trim();
+      const username = document.getElementById('username').value;
       const password = document.getElementById('password').value;
       const errorEl = document.getElementById('loginError');
       const btn = document.getElementById('loginBtn');
 
-      errorEl.style.display = 'none';
       btn.disabled = true;
-      btn.innerHTML = '<span class="spinner-sm"></span> Signing in...';
+      btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> Signing in...';
 
       try {
         const res = await fetch('/api/login', {
@@ -119,148 +74,21 @@
         const data = await res.json();
 
         if (data.success) {
-          // No OTP needed (user has no email) — go straight to dashboard
           window.location.href = '/dashboard.html';
-        } else if (data.otpRequired) {
-          // Show OTP step
-          currentUsername = data.username;
-          document.getElementById('otpEmailHint').textContent = `OTP sent to ${data.maskedEmail}`;
-          document.getElementById('loginForm').style.display = 'none';
-          document.getElementById('otpSection').style.display = 'block';
-          document.getElementById('otpInput').focus();
-          startResendTimer();
         } else {
           errorEl.textContent = data.error || 'Invalid credentials';
           errorEl.style.display = 'block';
+          btn.disabled = false;
+          btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> Sign In';
         }
       } catch (err) {
         errorEl.textContent = 'Unable to connect to server. Please try again.';
         errorEl.style.display = 'block';
-      } finally {
         btn.disabled = false;
-        btn.innerHTML = SIGN_IN_ICON + ' Sign In';
+        btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> Sign In';
       }
-    });
-
-    // Step 2: OTP Form
-    document.getElementById('otpForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const otp = document.getElementById('otpInput').value.trim();
-      const errorEl = document.getElementById('loginError');
-      const btn = document.getElementById('verifyBtn');
-
-      if (otp.length !== 6) {
-        errorEl.textContent = 'Please enter a valid 6-digit OTP';
-        errorEl.style.display = 'block';
-        return;
-      }
-
-      errorEl.style.display = 'none';
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner-sm"></span> Verifying...';
-
-      try {
-        const res = await fetch('/api/verify-otp', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: currentUsername, otp })
-        });
-        const data = await res.json();
-
-        if (data.success) {
-          window.location.href = '/dashboard.html';
-        } else {
-          errorEl.textContent = data.error || 'Invalid OTP';
-          errorEl.style.display = 'block';
-          document.getElementById('otpInput').value = '';
-          document.getElementById('otpInput').focus();
-        }
-      } catch (err) {
-        errorEl.textContent = 'Verification failed. Please try again.';
-        errorEl.style.display = 'block';
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Verify OTP';
-      }
-    });
-
-    // Resend OTP
-    async function resendOTP() {
-      const btn = document.getElementById('resendBtn');
-      const errorEl = document.getElementById('loginError');
-      btn.disabled = true;
-      btn.textContent = 'Sending...';
-
-      try {
-        const res = await fetch('/api/resend-otp', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: currentUsername })
-        });
-        const data = await res.json();
-        if (data.success) {
-          errorEl.textContent = 'New OTP sent to your email';
-          errorEl.style.display = 'block';
-          errorEl.style.background = '#dcfce7';
-          errorEl.style.color = '#16a34a';
-          errorEl.style.borderColor = '#bbf7d0';
-          startResendTimer();
-        } else {
-          errorEl.textContent = data.error || 'Failed to resend';
-          errorEl.style.display = 'block';
-          errorEl.style.background = '';
-          errorEl.style.color = '';
-          errorEl.style.borderColor = '';
-          btn.disabled = false;
-          btn.innerHTML = 'Resend OTP';
-        }
-      } catch (err) {
-        errorEl.textContent = 'Network error';
-        errorEl.style.display = 'block';
-        btn.disabled = false;
-        btn.innerHTML = 'Resend OTP';
-      }
-    }
-
-    function startResendTimer() {
-      const btn = document.getElementById('resendBtn');
-      const timer = document.getElementById('resendTimer');
-      let seconds = 60;
-      btn.disabled = true;
-      timer.style.display = 'inline';
-      timer.textContent = `(${seconds}s)`;
-
-      if (resendInterval) clearInterval(resendInterval);
-      resendInterval = setInterval(() => {
-        seconds--;
-        timer.textContent = `(${seconds}s)`;
-        if (seconds <= 0) {
-          clearInterval(resendInterval);
-          btn.disabled = false;
-          timer.style.display = 'none';
-          btn.innerHTML = 'Resend OTP <span id="resendTimer"></span>';
-        }
-      }, 1000);
-    }
-
-    function backToLogin() {
-      currentUsername = '';
-      document.getElementById('otpSection').style.display = 'none';
-      document.getElementById('loginForm').style.display = 'block';
-      document.getElementById('loginError').style.display = 'none';
-      document.getElementById('loginError').style.background = '';
-      document.getElementById('loginError').style.color = '';
-      document.getElementById('loginError').style.borderColor = '';
-      document.getElementById('otpInput').value = '';
-      if (resendInterval) clearInterval(resendInterval);
-    }
-
-    // Only allow numeric input in OTP field
-    document.getElementById('otpInput').addEventListener('input', function () {
-      this.value = this.value.replace(/[^0-9]/g, '');
     });
   </script>
-
   <style>
     @keyframes spin {
       to {
@@ -270,59 +98,6 @@
 
     .spin {
       animation: spin 1s linear infinite;
-    }
-
-    .spinner-sm {
-      width: 16px;
-      height: 16px;
-      border: 2px solid rgba(255, 255, 255, 0.3);
-      border-top-color: #fff;
-      border-radius: 50%;
-      animation: spin 0.6s linear infinite;
-      display: inline-block;
-      vertical-align: middle;
-      margin-right: 6px;
-    }
-
-    .otp-info {
-      text-align: center;
-      padding: 20px 0 10px;
-    }
-
-    .otp-actions {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: 16px;
-      padding-top: 16px;
-      border-top: 1px solid #e2e8f0;
-    }
-
-    .btn-link {
-      background: none;
-      border: none;
-      color: #0ea5e9;
-      cursor: pointer;
-      font-size: 13px;
-      font-weight: 500;
-      padding: 4px 0;
-      font-family: inherit;
-      transition: color 0.2s;
-    }
-
-    .btn-link:hover {
-      color: #0284c7;
-      text-decoration: underline;
-    }
-
-    .btn-link:disabled {
-      color: #94a3b8;
-      cursor: not-allowed;
-      text-decoration: none;
-    }
-
-    #otpForm .form-group {
-      margin-bottom: 16px;
     }
   </style>
 </body>
