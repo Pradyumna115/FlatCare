@@ -366,7 +366,9 @@ app.get('/api/payments', async (req, res) => {
         for (const p of payments) {
             total_received += p.amount_paid || 0;
             if (p.status === 'Pending') {
-                total_pending += (p.amount_expected || 0) + (p.garbage_charge || 0);
+                const totalDue = (p.amount_expected || 0) + (p.garbage_charge || 0) + (p.previous_arrears || 0) + (p.extra_payment || 0);
+                const pending = totalDue - (p.amount_paid || 0);
+                total_pending += pending > 0 ? pending : 0;
             }
         }
 
