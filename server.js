@@ -15,9 +15,6 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ── Multer setup for expense attachments ──
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-
 const storage = multer.memoryStorage(); // Use memory storage to store files as Base64 in MongoDB
 
 const upload = multer({
@@ -257,7 +254,7 @@ app.get('/api/check-auth', (req, res) => {
 // ── Protect all remaining routes ──
 app.use(requireAuth);
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/uploads', express.static(uploadDir));
+// app.use('/uploads', express.static(uploadDir)); // Removed for Vercel compatibility (using Base64 in MongoDB)
 
 // ── Current user ──
 app.get('/api/me', (req, res) => {
