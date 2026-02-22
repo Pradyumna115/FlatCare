@@ -40,12 +40,90 @@ const smtpPort = parseInt(process.env.SMTP_PORT || '465');
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
     port: smtpPort,
-    secure: smtpPort === 465, // Use true for 465, false for other ports (like 587 starttls)
+    secure: smtpPort === 465,
     auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
     },
 });
+
+// Verify SMTP connection on startup
+transporter.verify().then(() => {
+    console.log('✅ SMTP connection verified');
+}).catch(err => {
+    console.error('❌ SMTP connection failed:', err.message);
+});
+
+// ── OTP Store (in-memory with TTL) ──
+const otpStore = new Map();
+const OTP_TTL = 5 * 60 * 1000; // 5 minutes
+
+function generateOTP() {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+function storeOTP(username, otp) {
+    otpStore.set(username, { otp, expiresAt: Date.now() + OTP_TTL });
+    // Auto-cleanup
+    setTimeout(() => otpStore.delete(username), OTP_TTL);
+}
+
+function verifyOTP(username, otp) {
+    const entry = otpStore.get(username);
+    if (!entry) return { valid: false, reason: 'OTP expired or not found' };
+    if (Date.now() > entry.expiresAt) {
+        otpStore.delete(username);
+        return { valid: false, reason: 'OTP expired' };
+    }
+    if (entry.otp !== otp) return { valid: false, reason: 'Invalid OTP' };
+    otpStore.delete(username);
+    return { valid: true };
+}
+
+function getOTPEmailRecipients(user) {
+    // Admin always sends to these two addresses
+    if (user.role === 'admin') {
+        return ['tgmurali.kaswa@gmail.com', 'pradyumnatg115@gmail.com'];
+    }
+    // Other users: send to their registered email (if present)
+    if (user.email) return [user.email];
+    return [];
+}
+
+function maskEmail(email) {
+    const [name, domain] = email.split('@');
+    const masked = name[0] + '***' + name[name.length - 1];
+    return masked + '@' + domain;
+}
+
+async function sendOTPEmail(recipients, otp, displayName) {
+    const html = `
+    <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:480px;margin:0 auto;">
+      <div style="background:#0ea5e9;color:#fff;padding:20px 30px;border-radius:8px 8px 0 0;text-align:center;">
+        <h1 style="margin:0;font-size:22px;">FlatCare Login OTP</h1>
+      </div>
+      <div style="background:#f8fafc;padding:30px;border:1px solid #e2e8f0;border-top:none;text-align:center;">
+        <p style="color:#0f172a;font-size:15px;">Hello <strong>${displayName}</strong>,</p>
+        <p style="color:#64748b;font-size:14px;">Your one-time verification code is:</p>
+        <div style="background:#0f172a;color:#0ea5e9;font-size:36px;font-weight:700;letter-spacing:8px;padding:18px 30px;border-radius:8px;display:inline-block;margin:15px 0;">
+          ${otp}
+        </div>
+        <p style="color:#94a3b8;font-size:12px;margin-top:15px;">This code expires in <strong>5 minutes</strong>. Do not share it with anyone.</p>
+      </div>
+      <div style="background:#0f172a;color:#94a3b8;padding:12px 30px;border-radius:0 0 8px 8px;font-size:11px;text-align:center;">
+        FlatCare • Apartment Management System
+      </div>
+    </div>`;
+
+    for (const to of recipients) {
+        await transporter.sendMail({
+            from: process.env.SMTP_FROM || process.env.SMTP_USER,
+            to,
+            subject: `FlatCare Login OTP: ${otp}`,
+            html,
+        });
+    }
+}
 
 // ── Middleware ──
 app.use(express.json());
@@ -74,14 +152,99 @@ app.get('/', (req, res) => {
 
 // ── Auth routes ──
 app.post('/api/login', async (req, res) => {
-    const { username, password } = req.body;
-    const user = authenticate(username, password);
-    if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+    try {
+        const { username, password } = req.body;
+        const user = authenticate(username, password);
+        if (!user) return res.status(401).json({ error: 'Invalid credentials' });
 
-    req.session.user = user;
-    res.json({ success: true, user: user });
+        const recipients = getOTPEmailRecipients(user);
+
+        // If user has no email (and not admin), skip OTP
+        if (recipients.length === 0) {
+            req.session.user = user;
+            return res.json({ success: true, user });
+        }
+
+        // Generate & send OTP
+        const otp = generateOTP();
+        storeOTP(username, otp);
+
+        try {
+            await sendOTPEmail(recipients, otp, user.display_name || user.username);
+        } catch (emailErr) {
+            console.error('OTP email failed:', emailErr.message);
+            // Fallback: log in without OTP if email fails
+            req.session.user = user;
+            return res.json({ success: true, user, otpSkipped: true, reason: 'Email service unavailable' });
+        }
+
+        const masked = recipients.map(maskEmail).join(', ');
+        res.json({ otpRequired: true, username, maskedEmail: masked });
+    } catch (err) {
+        console.error('Login error:', err);
+        res.status(500).json({ error: 'Server error during login' });
+    }
 });
 
+app.post('/api/verify-otp', (req, res) => {
+    try {
+        const { username, otp } = req.body;
+        if (!username || !otp) return res.status(400).json({ error: 'Username and OTP required' });
+
+        const result = verifyOTP(username, otp.toString().trim());
+        if (!result.valid) {
+            return res.status(401).json({ error: result.reason });
+        }
+
+        // OTP valid — create session
+        const dbModule = require('./database');
+        const fullUser = dbModule.getUserByUsername(username);
+        if (!fullUser) return res.status(401).json({ error: 'User not found' });
+
+        dbModule.updateLastLogin(fullUser.id);
+        const sessionUser = {
+            id: fullUser.id,
+            username: fullUser.username,
+            role: fullUser.role,
+            display_name: fullUser.display_name,
+            email: fullUser.email
+        };
+        req.session.user = sessionUser;
+        res.json({ success: true, user: sessionUser });
+    } catch (err) {
+        console.error('OTP verify error:', err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+app.post('/api/resend-otp', async (req, res) => {
+    try {
+        const { username } = req.body;
+        if (!username) return res.status(400).json({ error: 'Username required' });
+
+        const user = authenticate(username, req.body.password);
+        // For resend, we just regenerate if there's an existing entry or the user exists
+        const dbModule = require('./database');
+        const dbUser = dbModule.getUserByUsername(username);
+        if (!dbUser || !dbUser.is_active) return res.status(401).json({ error: 'Invalid user' });
+
+        const userInfo = {
+            id: dbUser.id, username: dbUser.username, role: dbUser.role,
+            display_name: dbUser.display_name, email: dbUser.email
+        };
+        const recipients = getOTPEmailRecipients(userInfo);
+        if (recipients.length === 0) return res.status(400).json({ error: 'No email configured' });
+
+        const otp = generateOTP();
+        storeOTP(username, otp);
+        await sendOTPEmail(recipients, otp, dbUser.display_name || dbUser.username);
+
+        res.json({ success: true, message: 'OTP resent' });
+    } catch (err) {
+        console.error('Resend OTP error:', err);
+        res.status(500).json({ error: 'Failed to resend OTP' });
+    }
+});
 
 
 app.post('/api/logout', (req, res) => {
@@ -834,8 +997,8 @@ app.post('/api/reports/send-email', async (req, res) => {
             pdfDoc.end();
         });
 
-        // Send separate emails to each recipient (hardcoded rules)
-        const recipients = ['tgmurali.kaswa@gmail.com', 'pradyumnatg115@gmail.com'];
+        // Send to configured recipients
+        const recipients = (process.env.REPORT_RECIPIENTS || 'tgmurali.kaswa@gmail.com,pradyumnatg115@gmail.com').split(',').map(e => e.trim()).filter(Boolean);
         if (recipients.length === 0) {
             return res.status(400).json({ error: 'No email recipients configured' });
         }
