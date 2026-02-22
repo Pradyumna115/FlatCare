@@ -62,8 +62,8 @@ async function syncMonthlyExcel(month, year) {
             properties: { tabColor: { argb: 'F97316' } }
         });
 
-        const reportData = db.getDashboardData(month, year);
-        const paymentsArray = db.getPaymentsForMonth(month, year);
+        const reportData = await db.getDashboardData(month, year);
+        const paymentsArray = await db.getPaymentsForMonth(month, year);
         const paidCnt = paymentsArray.filter(p => p.status === 'Paid').length;
         const pndCnt = paymentsArray.filter(p => p.status === 'Pending').length;
 
@@ -104,7 +104,7 @@ async function syncMonthlyExcel(month, year) {
             properties: { tabColor: { argb: '0EA5E9' } }
         });
 
-        const flats = db.getAllFlats();
+        const flats = await db.getAllFlats();
         flatsSheet.columns = [
             { header: 'Flat No', key: 'flat_number', width: 12 },
             { header: 'Owner/Resident Name', key: 'owner_name', width: 30 },
@@ -134,16 +134,18 @@ async function syncMonthlyExcel(month, year) {
             properties: { tabColor: { argb: '22C55E' } }
         });
 
-        const payments = db.getPaymentsForMonth(month, year);
+        const payments = await db.getPaymentsForMonth(month, year);
         paymentsSheet.columns = [
             { header: 'Flat No', key: 'flat_number', width: 12 },
             { header: 'Owner', key: 'owner_name', width: 22 },
-            { header: 'Expected (₹)', key: 'amount_expected', width: 16 },
-            { header: 'Paid (₹)', key: 'amount_paid', width: 14 },
+            { header: 'Maintenance (₹)', key: 'amount_expected', width: 16 },
             { header: 'Garbage (₹)', key: 'garbage_charge', width: 14 },
+            { header: 'Arrears from Previous (₹)', key: 'previous_arrears', width: 18 },
+            { header: 'Extra Payment (₹)', key: 'extra_payment', width: 16 },
+            { header: 'Total Due (₹)', key: 'total_due', width: 16 },
+            { header: 'Paid (₹)', key: 'amount_paid', width: 14 },
             { header: 'Status', key: 'status', width: 15 },
             { header: 'Date Paid', key: 'date_paid', width: 18 },
-            { header: 'Total (₹)', key: 'total_amount', width: 16 },
         ];
 
         applyEnterpriseHeader(paymentsSheet, `Payment Records - ${monthName} ${year}`);
@@ -153,11 +155,13 @@ async function syncMonthlyExcel(month, year) {
                 flat_number: p.flat_number,
                 owner_name: p.owner_name || '',
                 amount_expected: p.amount_expected,
-                amount_paid: p.amount_paid,
                 garbage_charge: p.garbage_charge,
+                previous_arrears: p.previous_arrears,
+                extra_payment: p.extra_payment,
+                total_due: (p.amount_expected || 0) + (p.garbage_charge || 0) + (p.previous_arrears || 0) + (p.extra_payment || 0),
+                amount_paid: p.amount_paid,
                 status: p.status,
                 date_paid: p.date_paid || '',
-                total_amount: (p.amount_expected || 0) + (p.garbage_charge || 0)
             });
             // Color code status
             const statusCell = row.getCell('status');
@@ -169,7 +173,7 @@ async function syncMonthlyExcel(month, year) {
                 statusCell.font = { color: { argb: 'DC2626' }, bold: true };
             }
         }
-        applyCurrencyFormat(paymentsSheet, ['C', 'D', 'E', 'H']);
+        applyCurrencyFormat(paymentsSheet, ['C', 'D', 'E', 'F', 'G', 'H']);
 
         // Totals row using formulas
         const lastRow = paymentsSheet.rowCount;
@@ -180,11 +184,13 @@ async function syncMonthlyExcel(month, year) {
             flat_number: 'TOTALS',
             owner_name: `${paidCount} Paid / ${pendingCount} Pending`,
             amount_expected: { formula: `SUM(C7:C${lastRow})` },
-            amount_paid: { formula: `SUM(D7:D${lastRow})` },
-            garbage_charge: { formula: `SUM(E7:E${lastRow})` },
+            garbage_charge: { formula: `SUM(D7:D${lastRow})` },
+            previous_arrears: { formula: `SUM(E7:E${lastRow})` },
+            extra_payment: { formula: `SUM(F7:F${lastRow})` },
+            total_due: { formula: `SUM(G7:G${lastRow})` },
+            amount_paid: { formula: `SUM(H7:H${lastRow})` },
             status: '',
             date_paid: 'Grand Total',
-            total_amount: { formula: `SUM(H7:H${lastRow})` },
         });
         totalsRow.font = { bold: true, size: 11 };
         totalsRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F1F5F9' } };
@@ -194,7 +200,7 @@ async function syncMonthlyExcel(month, year) {
             properties: { tabColor: { argb: 'EF4444' } }
         });
 
-        const expenses = db.getExpensesForMonth(month, year);
+        const expenses = await db.getExpensesForMonth(month, year);
         expensesSheet.columns = [
             { header: '#', key: 'num', width: 6 },
             { header: 'Date', key: 'date', width: 14 },

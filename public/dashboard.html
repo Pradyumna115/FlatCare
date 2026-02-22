@@ -20,10 +20,10 @@
         <!-- Month and Initialize controls in page -->
         <div class="page-header">
             <div class="month-selector">
-                <select id="monthSelect"></select>
-                <select id="yearSelect"></select>
+                <select id="monthSelect" onchange="loadDashboard()"></select>
+                <select id="yearSelect" onchange="loadDashboard()"></select>
                 <button class="btn btn-primary" onclick="loadDashboard()">
-                    Load
+                    Refresh
                 </button>
             </div>
             <div class="flex-center" style="gap:8px;">
@@ -47,7 +47,7 @@
 
         <!-- Stats Grid -->
         <div class="stats-grid" id="statsGrid">
-            <div class="stat-card">
+            <div class="stat-card" style="position:relative;">
                 <div class="stat-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22"
                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="12" y1="1" x2="12" y2="23" />
@@ -55,6 +55,15 @@
                     </svg></div>
                 <div class="stat-label">Opening Balance</div>
                 <div class="stat-value" id="openingBalance">₹0</div>
+                <button class="btn btn-ghost btn-sm" id="editOpeningBalanceBtn" onclick="openEditOpeningBalance()"
+                    title="Edit Opening Balance"
+                    style="position:absolute; top:12px; right:12px; display:none; padding:6px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                </button>
             </div>
             <div class="stat-card green">
                 <div class="stat-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22"
@@ -158,9 +167,20 @@
 
     <script src="./js/app.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
+        let _isAdmin = false;
+
+        document.addEventListener('DOMContentLoaded', async () => {
             buildAppShell('Dashboard');
             populateMonthSelector('monthSelect', 'yearSelect');
+
+            // Check if current user is admin
+            const me = await apiGet('/api/me');
+            if (me && me.role === 'admin') {
+                _isAdmin = true;
+                const editBtn = document.getElementById('editOpeningBalanceBtn');
+                if (editBtn) editBtn.style.display = 'inline-flex';
+            }
+
             loadDashboard();
         });
 
@@ -200,9 +220,16 @@
             if (!data.pending_flats || data.pending_flats.length === 0) {
                 pendingDiv.innerHTML = '<p class="no-data"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="20 6 9 17 4 12"/></svg><br>All payments collected!</p>';
             } else {
-                let html = '<div class="table-wrapper"><table><thead><tr><th>Flat</th><th>Owner</th><th class="text-right">Amount Due</th></tr></thead><tbody>';
+                let html = '<div class="table-wrapper"><table><thead><tr><th>Flat</th><th>Owner</th><th class="text-right">Maint + Garbage</th><th class="text-right">Arrears</th><th class="text-right">Total Due</th></tr></thead><tbody>';
                 for (const pf of data.pending_flats) {
-                    html += `<tr class="row-pending"><td><strong>${pf.flat_number}</strong></td><td>${pf.owner_name || '-'}</td><td class="text-right" style="color:var(--danger);font-weight:600;">${formatCurrency(pf.amount_expected)}</td></tr>`;
+                    const totalDue = (pf.amount_expected || 0) + (pf.garbage_charge || 0) + (pf.previous_arrears || 0) + (pf.extra_payment || 0);
+                    html += `<tr class="row-pending">
+                        <td><strong>${pf.flat_number}</strong></td>
+                        <td>${pf.owner_name || '-'}</td>
+                        <td class="text-right">${formatCurrency((pf.amount_expected || 0) + (pf.garbage_charge || 0))}</td>
+                        <td class="text-right" style="color:var(--danger);">${formatCurrency(pf.previous_arrears || 0)} ${pf.extra_payment > 0 ? `<br><small style="color:var(--text-muted);">+${formatCurrency(pf.extra_payment)} extra</small>` : ''}</td>
+                        <td class="text-right" style="color:var(--danger);font-weight:600;">${formatCurrency(totalDue)}</td>
+                    </tr>`;
                 }
                 html += '</tbody></table></div>';
                 pendingDiv.innerHTML = html;
@@ -242,6 +269,54 @@
                 'btn-success'
             );
         }
+
+        function openEditOpeningBalance() {
+            const month = getSelectedMonth('monthSelect');
+            const year = getSelectedYear('yearSelect');
+            const monthName = MONTH_NAMES[month];
+            const defaultDate = `${year}-${String(month).padStart(2, '0')}-01`;
+            const currentValue = document.getElementById('openingBalance').textContent.replace(/[₹,\s]/g, '') || '0';
+
+            const formHTML = `
+                <div class="form-group">
+                    <label for="obAmount">Opening Balance Amount (₹)</label>
+                    <input type="number" id="obAmount" value="${currentValue}" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="obDate">Balance Date</label>
+                    <input type="date" id="obDate" value="${defaultDate}">
+                </div>
+                <p style="color:var(--text-muted);font-size:12px;margin-top:4px;">Setting the opening balance for <strong>${monthName} ${year}</strong>. The closing balance will be recalculated automatically.</p>
+            `;
+
+            showModal('Set Opening Balance', formHTML, async () => {
+                const amount = parseFloat(document.getElementById('obAmount').value);
+                const balanceDate = document.getElementById('obDate').value;
+
+                if (isNaN(amount)) {
+                    showToast('Please enter a valid amount', 'warning');
+                    return;
+                }
+
+                const btn = document.getElementById('modalConfirmBtn');
+                if (btn) btn.disabled = true;
+
+                try {
+                    const result = await apiPut('/api/monthly-summary/opening-balance', {
+                        month, year, amount, balance_date: balanceDate
+                    });
+                    if (result && !result.error) {
+                        showToast(`Opening balance for ${monthName} ${year} set to ₹${amount.toLocaleString('en-IN')}`, 'success');
+                        loadDashboard();
+                    } else if (result && result.error) {
+                        showToast(result.error, 'error');
+                    }
+                } finally {
+                    if (btn) btn.disabled = false;
+                }
+            }, 'Save', 'btn-primary');
+        }
+
         async function finalizeMonth() {
             const month = getSelectedMonth('monthSelect');
             const year = getSelectedYear('yearSelect');

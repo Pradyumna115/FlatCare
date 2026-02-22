@@ -8,27 +8,128 @@
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./css/style.css">
+  <style>
+    /* OTP-specific styles */
+    #otpInput {
+      text-align: center;
+      font-size: 24px !important;
+      letter-spacing: 8px;
+      font-weight: 700 !important;
+      padding: 14px 16px !important;
+    }
+
+    #otpForm .btn+.btn {
+      margin-top: 10px;
+    }
+
+    .otp-info {
+      text-align: center;
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 14px;
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+
+    .otp-info strong {
+      color: var(--primary-light);
+    }
+
+    .login-footer {
+      text-align: center;
+      margin-top: 28px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .login-footer p {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.4);
+    }
+
+    .login-footer span {
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .login-box .btn-secondary {
+      background: transparent;
+      color: var(--primary);
+      border: 1.5px solid rgba(14, 165, 233, 0.3);
+      width: 100%;
+      text-align: center;
+      padding: 13px 24px;
+      font-size: 15px;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all var(--duration) var(--ease);
+      font-family: var(--font);
+    }
+
+    .login-box .btn-secondary:hover {
+      background: rgba(14, 165, 233, 0.08);
+      border-color: var(--primary);
+    }
+
+    .login-box .btn-ghost {
+      background: transparent;
+      color: rgba(255, 255, 255, 0.6);
+      border: 1.5px solid rgba(255, 255, 255, 0.15);
+      width: 100%;
+      text-align: center;
+      padding: 13px 24px;
+      font-size: 15px;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all var(--duration) var(--ease);
+      font-family: var(--font);
+    }
+
+    .login-box .btn-ghost:hover {
+      background: rgba(255, 255, 255, 0.06);
+      color: #fff;
+    }
+
+    /* Spinner */
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .spin {
+      animation: spin 1s linear infinite;
+    }
+  </style>
 </head>
 
 <body>
   <div class="login-wrapper">
     <div class="login-box">
-      <!-- Logo -->
-      <svg class="logo-icon" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect width="64" height="64" rx="14" fill="#0ea5e9" />
-        <path d="M32 14L12 28v4l20-14 20 14v-4L32 14z" fill="#fff" />
-        <rect x="18" y="30" width="28" height="20" rx="2" fill="#fff" opacity="0.9" />
-        <rect x="24" y="36" width="6" height="8" rx="1" fill="#0ea5e9" opacity="0.6" />
-        <rect x="34" y="36" width="6" height="8" rx="1" fill="#0ea5e9" opacity="0.6" />
-        <rect x="28" y="42" width="8" height="8" rx="1" fill="#0284c7" opacity="0.8" />
+      <!-- Branding -->
+      <svg class="logo-icon" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="56" height="56" rx="14" fill="url(#loginGrad)" />
+        <path d="M28 14L14 24v2l14-10 14 10v-2L28 14z" fill="#fff" />
+        <rect x="17" y="26" width="22" height="16" rx="2" fill="#fff" opacity="0.9" />
+        <rect x="21" y="30" width="5" height="6" rx="1" fill="#0ea5e9" opacity="0.5" />
+        <rect x="30" y="30" width="5" height="6" rx="1" fill="#0ea5e9" opacity="0.5" />
+        <rect x="24" y="36" width="8" height="6" rx="1" fill="#0284c7" opacity="0.7" />
+        <defs>
+          <linearGradient id="loginGrad" x1="0" y1="0" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#0ea5e9" />
+            <stop offset="1" stop-color="#0284c7" />
+          </linearGradient>
+        </defs>
       </svg>
       <h1>FlatCare</h1>
       <p class="subtitle">Apartment Maintenance Management</p>
 
       <div id="loginError" class="login-error"></div>
 
+      <!-- Login Form -->
       <form id="loginForm">
         <div class="form-group">
           <label for="username">Username</label>
@@ -36,12 +137,22 @@
         </div>
         <div class="form-group">
           <label for="password">Password</label>
-          <input type="password" id="password" placeholder="Enter your password" required
-            autocomplete="current-password">
+          <div class="pwd-group">
+            <input type="password" id="password" placeholder="Enter your password" required
+              autocomplete="current-password">
+            <button type="button" class="pwd-toggle" onclick="togglePasswordVisibility('password')" tabindex="-1">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="eye-icon">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+            </button>
+          </div>
         </div>
-        <button type="submit" class="btn btn-primary" id="loginBtn">
+        <button type="submit" class="btn" id="loginBtn">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+            style="margin-right:6px; vertical-align:middle;">
             <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
             <polyline points="10 17 15 12 10 7" />
             <line x1="15" y1="12" x2="3" y2="12" />
@@ -50,20 +161,62 @@
         </button>
       </form>
 
+      <!-- OTP Verification Form (hidden by default) -->
+      <form id="otpForm" style="display:none;">
+        <p class="otp-info" id="otpInfo"></p>
+        <div class="form-group">
+          <label for="otpInput">Verification Code</label>
+          <input type="text" id="otpInput" placeholder="000000" required maxlength="6">
+        </div>
+        <button type="submit" class="btn" id="otpBtn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+            style="margin-right:6px; vertical-align:middle;">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+            <polyline points="22 4 12 14.01 9 11.01" />
+          </svg>
+          Verify OTP
+        </button>
+        <button type="button" class="btn-secondary" id="resendBtn">Resend OTP</button>
+        <button type="button" class="btn-ghost" id="backBtn">← Back to Login</button>
+      </form>
 
+      <div class="login-footer">
+        <p>Powered by <span>FlatCare</span> • Aditya Residency</p>
+      </div>
     </div>
   </div>
 
   <script>
-    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    let pendingUsername = '';
+    let pendingPassword = '';
+
+    const loginForm = document.getElementById('loginForm');
+    const otpForm = document.getElementById('otpForm');
+    const errorEl = document.getElementById('loginError');
+
+    const signInIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:middle;"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> Sign In';
+    const spinnerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin" style="margin-right:6px;vertical-align:middle;"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>';
+    const verifyIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:middle;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Verify OTP';
+
+    function showError(msg) {
+      errorEl.textContent = msg;
+      errorEl.style.display = 'block';
+    }
+    function hideError() {
+      errorEl.style.display = 'none';
+    }
+
+    // Login form submit
+    loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const username = document.getElementById('username').value;
+      hideError();
+      const username = document.getElementById('username').value.trim();
       const password = document.getElementById('password').value;
-      const errorEl = document.getElementById('loginError');
       const btn = document.getElementById('loginBtn');
 
       btn.disabled = true;
-      btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> Signing in...';
+      btn.innerHTML = spinnerHTML + ' Signing in...';
 
       try {
         const res = await fetch('/api/login', {
@@ -75,31 +228,98 @@
 
         if (data.success) {
           window.location.href = '/dashboard.html';
+        } else if (data.otpRequired) {
+          pendingUsername = data.username;
+          pendingPassword = password;
+          document.getElementById('otpInfo').innerHTML = 'A verification code was sent to <strong>' + data.maskedEmail + '</strong>';
+          loginForm.style.display = 'none';
+          otpForm.style.display = 'block';
+          document.getElementById('otpInput').focus();
         } else {
-          errorEl.textContent = data.error || 'Invalid credentials';
-          errorEl.style.display = 'block';
-          btn.disabled = false;
-          btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> Sign In';
+          showError(data.error || 'Invalid credentials');
         }
       } catch (err) {
-        errorEl.textContent = 'Unable to connect to server. Please try again.';
-        errorEl.style.display = 'block';
+        showError('Unable to connect to server. Please try again.');
+      } finally {
         btn.disabled = false;
-        btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> Sign In';
+        btn.innerHTML = signInIcon;
       }
     });
-  </script>
-  <style>
-    @keyframes spin {
-      to {
-        transform: rotate(360deg);
-      }
-    }
 
-    .spin {
-      animation: spin 1s linear infinite;
-    }
-  </style>
+    // OTP form submit
+    otpForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideError();
+      const otp = document.getElementById('otpInput').value.trim();
+      const btn = document.getElementById('otpBtn');
+
+      if (!otp || otp.length < 6) {
+        showError('Please enter the 6-digit OTP');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = spinnerHTML + ' Verifying...';
+
+      try {
+        const res = await fetch('/api/verify-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: pendingUsername, otp })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          window.location.href = '/dashboard.html';
+        } else {
+          showError(data.error || 'Invalid OTP');
+        }
+      } catch (err) {
+        showError('Unable to verify OTP. Please try again.');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = verifyIcon;
+      }
+    });
+
+    // Resend OTP
+    document.getElementById('resendBtn').addEventListener('click', async () => {
+      hideError();
+      const btn = document.getElementById('resendBtn');
+      btn.disabled = true;
+      btn.textContent = 'Sending...';
+
+      try {
+        const res = await fetch('/api/resend-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: pendingUsername, password: pendingPassword })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          document.getElementById('otpInfo').innerHTML = '<strong>OTP resent!</strong> Check your email.';
+        } else {
+          showError(data.error || 'Failed to resend OTP');
+        }
+      } catch (err) {
+        showError('Failed to resend OTP.');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Resend OTP';
+      }
+    });
+
+    // Back to login
+    document.getElementById('backBtn').addEventListener('click', () => {
+      hideError();
+      otpForm.style.display = 'none';
+      loginForm.style.display = 'block';
+      document.getElementById('otpInput').value = '';
+      pendingUsername = '';
+      pendingPassword = '';
+    });
+  </script>
 </body>
 
 </html>

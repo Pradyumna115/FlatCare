@@ -54,6 +54,8 @@ const ICONS = {
     trash: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
     users: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
     account: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>',
+    eye: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>',
+    eyeOff: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M1 1l22 22"></path></svg>',
 };
 
 // ── Utility Functions ──
@@ -77,10 +79,22 @@ function formatDate(dateStr) {
 
 async function apiFetch(url, options = {}) {
     try {
-        const res = await fetch(url, {
-            headers: { 'Content-Type': 'application/json' },
-            ...options
-        });
+        const fetchOptions = { ...options };
+
+        // Block modification requests for viewer role
+        if (fetchOptions.method && fetchOptions.method !== 'GET') {
+            const user = await getCurrentUser();
+            if (user && user.role === 'viewer') {
+                showToast('Viewers cannot modify data', 'error');
+                return null;
+            }
+        }
+
+        // Only set Content-Type for JSON requests (not GET, not FormData)
+        if (options.body && typeof options.body === 'string') {
+            fetchOptions.headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+        }
+        const res = await fetch(url, fetchOptions);
         if (res.status === 401) {
             window.location.href = '/login.html';
             return null;
@@ -120,7 +134,7 @@ async function apiDelete(url) {
 // ── Logout ──
 
 async function logout() {
-    await apiFetch('/api/logout');
+    await apiFetch('/api/logout', { method: 'POST' });
     window.location.href = '/login.html';
 }
 
@@ -205,12 +219,13 @@ function buildAppShell(pageTitle) {
             // Show user info in topbar
             const topbarRight = document.getElementById('topbarRight');
             if (topbarRight) {
-                topbarRight.innerHTML = `<span style="font-size:13px;color:var(--text-muted);">Signed in as <strong style="color:var(--text);">${user.display_name || user.username}</strong> <span class="badge badge-info" style="font-size:10px;margin-left:4px;">${user.role}</span></span>`;
+                topbarRight.innerHTML = `<span style="font-size:13px;color:var(--text-muted);">Signed in as <strong style="color:var(--text);">Hello Murali</strong> <span class="badge badge-info" style="font-size:10px;margin-left:4px;">${user.role}</span></span>`;
             }
         } else if (user) {
             const topbarRight = document.getElementById('topbarRight');
             if (topbarRight) {
-                topbarRight.innerHTML = `<span style="font-size:13px;color:var(--text-muted);">Signed in as <strong style="color:var(--text);">${user.display_name || user.username}</strong></span>`;
+                const displayName = user.display_name || user.username;
+                topbarRight.innerHTML = `<span style="font-size:13px;color:var(--text-muted);">Signed in as <strong style="color:var(--text);">Hello ${displayName}</strong></span>`;
             }
         }
     }, 0);
@@ -503,6 +518,24 @@ function showStatsSkeleton(container) {
     container.innerHTML = Array(4).fill(0).map(() =>
         `<div class="stat-card"><div class="skeleton skeleton-circle"></div><div class="skeleton skeleton-text" style="width:60%;margin-top:12px;"></div><div class="skeleton skeleton-text" style="width:40%;height:24px;"></div></div>`
     ).join('');
+}
+
+// ══════════════════════════════════════════
+// PASSWORD TOGGLE
+// ══════════════════════════════════════════
+
+function togglePasswordVisibility(inputId) {
+    const input = document.getElementById(inputId);
+    const btn = input.parentElement.querySelector('.pwd-toggle');
+    if (!input || !btn) return;
+
+    if (input.type === 'password') {
+        input.type = 'text';
+        btn.innerHTML = ICONS.eyeOff;
+    } else {
+        input.type = 'password';
+        btn.innerHTML = ICONS.eye;
+    }
 }
 
 // ══════════════════════════════════════════

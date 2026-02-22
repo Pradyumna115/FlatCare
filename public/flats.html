@@ -166,7 +166,7 @@
         function renderFlats() {
             const tbody = document.getElementById('flatsBody');
             if (allFlats.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7"><p class="no-data">No flats found</p></td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8"><p class="no-data">No flats found</p></td></tr>';
                 document.getElementById('pageInfo').innerText = "Showing 0 of 0 flats";
                 document.getElementById('prevPageBtn').disabled = true;
                 document.getElementById('nextPageBtn').disabled = true;
@@ -190,14 +190,14 @@
           <td><strong>${f.flat_number}</strong></td>
           <td>
             <input class="editable-input" value="${f.owner_name || ''}" placeholder="Enter name"
-              oninput="updateFlat(${f.id}, 'owner_name', this.value)">
+              oninput="updateFlat('${f.id}', 'owner_name', this.value)">
           </td>
           <td>
             <input class="editable-input" value="${f.contact || ''}" placeholder="Phone number"
-              oninput="updateFlat(${f.id}, 'contact', this.value)">
+              oninput="updateFlat('${f.id}', 'contact', this.value)">
           </td>
           <td>
-            <select class="editable-input status-select" style="width:auto;min-width:105px;" onchange="updateFlat(${f.id}, 'status', this.value); handleStatusChange(this, ${f.id})">
+            <select class="editable-input status-select" style="width:auto;min-width:105px;" onchange="updateFlat('${f.id}', 'status', this.value); handleStatusChange(this, '${f.id}')">
               <option value="Occupied" ${f.status === 'Occupied' ? 'selected' : ''}>Occupied</option>
               <option value="Vacant" ${f.status === 'Vacant' ? 'selected' : ''}>Vacant</option>
             </select>
@@ -206,10 +206,10 @@
           <td class="text-right" id="garbage-${f.id}">${formatCurrency(f.garbage_charge)}</td>
           <td class="text-right"><strong id="total-${f.id}">${formatCurrency(f.maintenance_charge + f.garbage_charge)}</strong></td>
           <td class="text-center" style="white-space:nowrap;">
-            <button class="btn btn-ghost btn-sm save-btn-${f.id}" onclick="saveFlat(${f.id}, this)" title="Save Changes">
+            <button class="btn btn-ghost btn-sm save-btn-${f.id}" onclick="saveFlat('${f.id}', this)" title="Save Changes">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
             </button>
-            <button class="btn btn-ghost btn-sm" onclick="viewHistory(${f.id}, '${f.flat_number}')" title="Payment History">
+            <button class="btn btn-ghost btn-sm" onclick="viewHistory('${f.id}', '${f.flat_number}')" title="Payment History">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             </button>
           </td>
@@ -218,7 +218,7 @@
         }
 
         async function updateFlat(id, field, value) {
-            const flat = allFlats.find(f => f.id === id);
+            const flat = allFlats.find(f => String(f.id) === String(id));
             if (!flat) return;
             flat[field] = value;
         }
@@ -236,7 +236,7 @@
         }
 
         async function saveFlat(id, btnElem) {
-            const flat = allFlats.find(f => f.id === id);
+            const flat = allFlats.find(f => String(f.id) === String(id));
             if (!flat) return;
 
             if (btnElem) {

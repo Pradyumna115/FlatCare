@@ -17,16 +17,16 @@ function getDbModule() {
  * Authenticate a user against the database.
  * Returns user object (without password_hash) on success, null on failure.
  */
-function authenticate(username, password) {
+async function authenticate(username, password) {
     const db = getDbModule();
-    const user = db.getUserByUsername(username);
+    const user = await db.getUserByUsername(username);
 
     if (!user) return null;
     if (!user.is_active) return null;
     if (!bcrypt.compareSync(password, user.password_hash)) return null;
 
     // Update last login timestamp
-    db.updateLastLogin(user.id);
+    await db.updateLastLogin(user.id);
 
     // Return safe user object (no password hash)
     return {

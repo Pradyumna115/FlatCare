@@ -741,6 +741,40 @@ tbody tr:last-child td {
   border-bottom: none;
 }
 
+.table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    transform: translateX(-100%);
+    width: 260px;
+    z-index: 1000;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .main-content {
+    margin-left: 0 !important;
+  }
+
+  .hamburger {
+    display: block !important;
+  }
+
+  .topbar {
+    padding: 0 16px;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ══════════════════════════════════════════
    FORMS
    ══════════════════════════════════════════ */
@@ -786,6 +820,69 @@ textarea:focus {
 input::placeholder,
 textarea::placeholder {
   color: var(--text-muted);
+}
+
+.pwd-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.pwd-group input {
+  padding-right: 40px;
+}
+
+.pwd-toggle {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: color 0.2s;
+}
+
+.pwd-toggle:hover {
+  color: var(--text);
+}
+
+.file-input-wrapper {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+
+.file-input-wrapper input[type="file"] {
+  position: absolute;
+  left: -9999px;
+  opacity: 0;
+}
+
+.file-input-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--bg-alt);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all var(--duration) var(--ease);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.file-input-btn:hover {
+  border-color: var(--primary);
+  color: var(--text);
+  background: var(--surface);
 }
 
 .form-row {
