@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlatCare – Flat Management</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./css/style.css">
+</head>
+
+<body>
+
+    <div id="pageContent" style="display:none;">
+        <!-- Search & Filters -->
+        <div class="page-header" style="flex-wrap: nowrap; gap: 10px;">
+            <div class="search-box">
+                <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                <input type="text" id="searchInput" placeholder="Search flats... (Ctrl+K)">
+            </div>
+
+            <select id="floorFilter" class="editable-input" style="width:140px;" onchange="applyFilters()">
+                <option value="all">All Floors</option>
+                <option value="1">1st Floor</option>
+                <option value="2">2nd Floor</option>
+                <option value="3">3rd Floor</option>
+                <option value="4">4th Floor</option>
+                <option value="5">5th Floor</option>
+            </select>
+
+            <select id="statusFilter" class="editable-input" style="width:140px;" onchange="applyFilters()">
+                <option value="all">All Status</option>
+                <option value="Occupied">Occupied</option>
+                <option value="Vacant">Vacant</option>
+            </select>
+
+            <div class="flex-center">
+                <button class="btn btn-ghost btn-sm" onclick="exportFlatsCSV()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    CSV
+                </button>
+            </div>
+        </div>
+
+        <!-- Flats Table -->
+        <div class="panel" style="padding:0; overflow:hidden;">
+            <div class="table-wrapper">
+                <table id="flatsTable">
+                    <thead>
+                        <tr>
+                            <th>Flat No.</th>
+                            <th>Owner Name</th>
+                            <th>Contact</th>
+                            <th>Status</th>
+                            <th class="text-right">Base Maint (₹)</th>
+                            <th class="text-right">Garbage (₹)</th>
+                            <th class="text-right">Total Amount (₹)</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="flatsBody">
+                        <tr>
+                            <td colspan="7">
+                                <p class="no-data">Loading...</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <!-- Pagination Controls -->
+            <div id="paginationControls"
+                style="padding: 12px 20px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--bg-alt);">
+                <div style="font-size: 13px; color: var(--text-muted);" id="pageInfo">Showing 0 of 0 flats</div>
+                <div style="display: flex; gap: 4px;">
+                    <button class="btn btn-ghost btn-sm" id="prevPageBtn" onclick="prevPage()">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <polyline points="15 18 9 12 15 6" />
+                        </svg> Prev
+                    </button>
+                    <button class="btn btn-ghost btn-sm" id="nextPageBtn" onclick="nextPage()">
+                        Next <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                            fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="9 18 15 12 9 6" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="./js/app.js"></script>
+    <script>
+        let allFlats = [];
+        let currentPage = 1;
+        const itemsPerPage = 20;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            buildAppShell('Flat Management');
+            loadFlats();
+
+            let debounceTimer;
+            document.getElementById('searchInput').addEventListener('input', () => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => applyFilters(), 300);
+            });
+
+            // Allow clicking input to focus easily
+            document.addEventListener('keydown', (e) => {
+                if (e.ctrlKey && e.key === 'k') {
+                    e.preventDefault();
+                    document.getElementById('searchInput').focus();
+                }
+            });
+        });
+
+        async function loadFlats() {
+            const floor = document.getElementById('floorFilter').value;
+            const status = document.getElementById('statusFilter').value;
+            const search = document.getElementById('searchInput').value;
+
+            const url = `/api/flats?floor=${floor}&status=${status}&search=${encodeURIComponent(search)}`;
+            const data = await apiGet(url);
+            if (!data) return;
+            allFlats = data;
+
+            // Adjust current page if out of bounds
+            const totalPages = Math.ceil(allFlats.length / itemsPerPage);
+            if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
+
+            renderFlats();
+        }
+
+        function applyFilters() {
+            currentPage = 1;
+            loadFlats();
+        }
+
+        function prevPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderFlats();
+            }
+        }
+
+        function nextPage() {
+            const totalPages = Math.ceil(allFlats.length / itemsPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderFlats();
+            }
+        }
+
+        function renderFlats() {
+            const tbody = document.getElementById('flatsBody');
+            if (allFlats.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7"><p class="no-data">No flats found</p></td></tr>';
+                document.getElementById('pageInfo').innerText = "Showing 0 of 0 flats";
+                document.getElementById('prevPageBtn').disabled = true;
+                document.getElementById('nextPageBtn').disabled = true;
+                return;
+            }
+
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = Math.min(startIndex + itemsPerPage, allFlats.length);
+            const paginatedFlats = allFlats.slice(startIndex, endIndex);
+
+            document.getElementById('pageInfo').innerText = `Showing ${startIndex + 1}-${endIndex} of ${allFlats.length} flats`;
+            document.getElementById('prevPageBtn').disabled = currentPage === 1;
+            document.getElementById('nextPageBtn').disabled = endIndex >= allFlats.length;
+
+            tbody.innerHTML = paginatedFlats.map(f => {
+                const statusBadge = f.status === 'Occupied'
+                    ? '<span class="badge badge-success">Occupied</span>'
+                    : '<span class="badge badge-warning">Vacant</span>';
+
+                return `<tr data-status="${f.status}">
+          <td><strong>${f.flat_number}</strong></td>
+          <td>
+            <input class="editable-input" value="${f.owner_name || ''}" placeholder="Enter name"
+              oninput="updateFlat(${f.id}, 'owner_name', this.value)">
+          </td>
+          <td>
+            <input class="editable-input" value="${f.contact || ''}" placeholder="Phone number"
+              oninput="updateFlat(${f.id}, 'contact', this.value)">
+          </td>
+          <td>
+            <select class="editable-input status-select" style="width:auto;min-width:105px;" onchange="updateFlat(${f.id}, 'status', this.value); handleStatusChange(this, ${f.id})">
+              <option value="Occupied" ${f.status === 'Occupied' ? 'selected' : ''}>Occupied</option>
+              <option value="Vacant" ${f.status === 'Vacant' ? 'selected' : ''}>Vacant</option>
+            </select>
+          </td>
+          <td class="text-right" id="base-maint-${f.id}">${formatCurrency(f.maintenance_charge)}</td>
+          <td class="text-right" id="garbage-${f.id}">${formatCurrency(f.garbage_charge)}</td>
+          <td class="text-right"><strong id="total-${f.id}">${formatCurrency(f.maintenance_charge + f.garbage_charge)}</strong></td>
+          <td class="text-center" style="white-space:nowrap;">
+            <button class="btn btn-ghost btn-sm save-btn-${f.id}" onclick="saveFlat(${f.id}, this)" title="Save Changes">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            </button>
+            <button class="btn btn-ghost btn-sm" onclick="viewHistory(${f.id}, '${f.flat_number}')" title="Payment History">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </button>
+          </td>
+        </tr>`;
+            }).join('');
+        }
+
+        async function updateFlat(id, field, value) {
+            const flat = allFlats.find(f => f.id === id);
+            if (!flat) return;
+            flat[field] = value;
+        }
+
+        function handleStatusChange(selectElem, id) {
+            const status = selectElem.value;
+            const isOccupied = status === 'Occupied';
+            const maint = 1500;
+            const garbage = isOccupied ? 100 : 0;
+            const total = maint + garbage;
+
+            document.getElementById(`base-maint-${id}`).innerText = formatCurrency(maint);
+            document.getElementById(`garbage-${id}`).innerText = formatCurrency(garbage);
+            document.getElementById(`total-${id}`).innerText = formatCurrency(total);
+        }
+
+        async function saveFlat(id, btnElem) {
+            const flat = allFlats.find(f => f.id === id);
+            if (!flat) return;
+
+            if (btnElem) {
+                btnElem.disabled = true;
+                btnElem.innerHTML = `<span class="loader" style="width: 14px; height: 14px; border: 2px solid currentColor; border-bottom-color: transparent; border-radius: 50%; display: inline-block; animation: rotation 1s linear infinite;"></span>`;
+            }
+
+            try {
+                const result = await apiPut(`/api/flats/${id}`, {
+                    owner_name: flat.owner_name,
+                    contact: flat.contact,
+                    status: flat.status
+                });
+
+                if (result) {
+                    showToast(`${flat.flat_number} updated successfully`, 'success');
+                    // Find and update local array with new calculated server fields
+                    const index = allFlats.findIndex(f => f.id === id);
+                    if (index !== -1) {
+                        allFlats[index].maintenance_charge = result.maintenance_charge;
+                        allFlats[index].garbage_charge = result.garbage_charge;
+                    }
+                    // No need to reload all flats, just updated visually
+                }
+            } finally {
+                if (btnElem) {
+                    btnElem.disabled = false;
+                    btnElem.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>`;
+                }
+            }
+        }
+
+        async function viewHistory(id, flatNumber) {
+            const history = await apiGet(`/api/flats/${id}/payment-history`);
+            if (!history) return;
+
+            let modalContent = '';
+
+            if (history.length === 0) {
+                modalContent = '<p class="no-data">No payment history found for this flat.</p>';
+            } else {
+                modalContent = `
+                <div class="table-wrapper" style="max-height: 400px; overflow-y: auto;">
+                    <table style="font-size: 13px;">
+                        <thead style="position: sticky; top: 0; background: var(--bg-alt); z-index: 1;">
+                            <tr>
+                                <th>Month</th>
+                                <th class="text-right">Expected</th>
+                                <th class="text-right">Paid</th>
+                                <th>Status</th>
+                                <th>Date Paid</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${history.map(p => {
+                    const monthName = MONTH_NAMES[p.month];
+                    const badge = p.status === 'Paid' ? '<span class="badge badge-success">Paid</span>' : '<span class="badge badge-danger">Pending</span>';
+                    return `
+                                <tr>
+                                    <td><strong>${monthName} ${p.year}</strong></td>
+                                    <td class="text-right">${formatCurrency(p.amount_expected)}</td>
+                                    <td class="text-right">${formatCurrency(p.amount_paid)}</td>
+                                    <td>${badge}</td>
+                                    <td>${p.date_paid ? formatDate(p.date_paid) : '-'}</td>
+                                </tr>
+                                `;
+                }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                `;
+            }
+
+            showModal(`Payment History - Flat ${flatNumber}`, modalContent, null, 'Close', 'btn-ghost');
+        }
+
+        function exportFlatsCSV() {
+            const headers = ['Flat No', 'Owner', 'Contact', 'Status', 'Maintenance', 'Garbage'];
+            // Export ALL flats that match current filters, not just the current page
+            const rows = allFlats.map(f => [f.flat_number, f.owner_name || '', f.contact || '', f.status, f.maintenance_charge, f.garbage_charge]);
+            const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'flats_export.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('CSV exported successfully', 'success');
+        }
+    </script>
+    <style>
+        @keyframes rotation {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</body>
+
+</html>

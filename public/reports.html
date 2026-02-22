@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlatCare – Reports</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
+</head>
+
+<body>
+
+  <div id="pageContent" style="display:none;">
+    <div class="page-header">
+      <div class="month-selector">
+        <select id="monthSelect"></select>
+        <select id="yearSelect"></select>
+        <button class="btn btn-primary" onclick="loadReport()">Generate Report</button>
+      </div>
+      <div class="flex-center" style="gap:8px; flex-wrap:wrap;">
+        <button class="btn btn-ghost" onclick="exportCSV()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg> CSV
+        </button>
+        <button class="btn btn-success" onclick="exportExcel()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+          </svg> Excel
+        </button>
+        <button class="btn btn-danger" onclick="exportPDF()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+          </svg> PDF
+        </button>
+        <button class="btn btn-primary" id="sendEmailBtn" onclick="sendEmail()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+            <polyline points="22,6 12,13 2,6" />
+          </svg>
+          <span id="emailBtnText">Send to Mail</span>
+          <span id="emailSpinner" style="display:none;" class="spinner"></span>
+        </button>
+        <button class="btn btn-ghost" onclick="window.print()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <polyline points="6 9 6 2 18 2 18 9" />
+            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+            <rect x="6" y="14" width="12" height="8" />
+          </svg> Print
+        </button>
+      </div>
+    </div>
+
+    <!-- Charts Grid -->
+    <div class="charts-grid" id="chartsSection">
+      <div class="panel chart-panel">
+        <h3>
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="20" x2="18" y2="10" />
+            <line x1="12" y1="20" x2="12" y2="4" />
+            <line x1="6" y1="20" x2="6" y2="14" />
+          </svg>
+          Collection vs Expenses
+        </h3>
+        <canvas id="barChart" height="200"></canvas>
+      </div>
+      <div class="panel chart-panel">
+        <h3>
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 2a10 10 0 0 1 10 10" />
+          </svg>
+          Expense Category Breakdown
+        </h3>
+        <canvas id="pieChart" height="200"></canvas>
+      </div>
+      <div class="panel chart-panel">
+        <h3>
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+          Payment Status
+        </h3>
+        <canvas id="doughnutChart" height="200"></canvas>
+      </div>
+      <div class="panel chart-panel">
+        <h3>
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+          </svg>
+          Floor-wise Collection
+        </h3>
+        <canvas id="floorChart" height="200"></canvas>
+      </div>
+    </div>
+
+    <div id="reportContent">
+      <p class="no-data">Select a month and click "Generate Report" to view.</p>
+    </div>
+  </div>
+
+  <style>
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    .chart-panel {
+      padding: 20px;
+    }
+
+    .chart-panel h3 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 14px;
+      color: var(--text-primary);
+    }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, .3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      display: inline-block;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @media (max-width: 768px) {
+      .charts-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+
+  <script src="./js/app.js"></script>
+  <script>
+    let chartInstances = {};
+
+    document.addEventListener('DOMContentLoaded', () => {
+      buildAppShell('Reports');
+      populateMonthSelector('monthSelect', 'yearSelect');
+      loadReport();
+    });
+
+    async function loadReport() {
+      const month = getSelectedMonth('monthSelect');
+      const year = getSelectedYear('yearSelect');
+
+      const [report, chartData] = await Promise.all([
+        apiGet(`/api/reports?month=${month}&year=${year}`),
+        apiGet(`/api/reports/chart-data?month=${month}&year=${year}`)
+      ]);
+
+      if (!report) return;
+
+      if (!report.is_initialized) {
+        document.getElementById('reportContent').innerHTML =
+          '<p class="no-data">This month has not been initialized yet.</p>';
+        document.getElementById('chartsSection').style.display = 'none';
+        return;
+      }
+
+      document.getElementById('chartsSection').style.display = 'grid';
+
+      // Render charts
+      if (chartData) renderCharts(chartData);
+
+      // Render report tables
+      renderReportContent(report, month, year);
+    }
+
+    function renderCharts(data) {
+      // Destroy existing charts
+      Object.values(chartInstances).forEach(c => c.destroy());
+      chartInstances = {};
+
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      const textColor = isDark ? '#e2e8f0' : '#0f172a';
+      const gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)';
+
+      Chart.defaults.color = textColor;
+
+      // 1. Collection vs Expenses Bar Chart
+      chartInstances.bar = new Chart(document.getElementById('barChart'), {
+        type: 'bar',
+        data: {
+          labels: data.collection_vs_expenses.labels,
+          datasets: [{
+            label: 'Amount (₹)',
+            data: data.collection_vs_expenses.data,
+            backgroundColor: ['#22c55e', '#ef4444', '#f59e0b'],
+            borderRadius: 8,
+            borderSkipped: false,
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: { y: { grid: { color: gridColor }, beginAtZero: true }, x: { grid: { display: false } } }
+        }
+      });
+
+      // 2. Expense Category Pie Chart
+      const catLabels = Object.keys(data.category_breakdown);
+      const catValues = Object.values(data.category_breakdown);
+      const pieColors = ['#0ea5e9', '#22c55e', '#f59e0b', '#ef4444', '#6366f1', '#14b8a6', '#ec4899', '#8b5cf6'];
+
+      if (catLabels.length > 0) {
+        chartInstances.pie = new Chart(document.getElementById('pieChart'), {
+          type: 'pie',
+          data: {
+            labels: catLabels,
+            datasets: [{
+              data: catValues,
+              backgroundColor: pieColors.slice(0, catLabels.length),
+              borderWidth: 2,
+              borderColor: isDark ? '#1e293b' : '#fff',
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 10 } } }
+          }
+        });
+      }
+
+      // 3. Paid vs Pending Doughnut
+      chartInstances.doughnut = new Chart(document.getElementById('doughnutChart'), {
+        type: 'doughnut',
+        data: {
+          labels: ['Paid', 'Pending'],
+          datasets: [{
+            data: [data.paid_vs_pending.paid, data.paid_vs_pending.pending],
+            backgroundColor: ['#22c55e', '#ef4444'],
+            borderWidth: 3,
+            borderColor: isDark ? '#1e293b' : '#fff',
+          }]
+        },
+        options: {
+          responsive: true,
+          cutout: '60%',
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 12 } },
+          }
+        }
+      });
+
+      // 4. Floor-wise Collection Bar Chart
+      if (data.floor_wise && data.floor_wise.length > 0) {
+        chartInstances.floor = new Chart(document.getElementById('floorChart'), {
+          type: 'bar',
+          data: {
+            labels: data.floor_wise.map(f => `Floor ${f.floor}`),
+            datasets: [
+              { label: 'Received', data: data.floor_wise.map(f => f.received), backgroundColor: '#22c55e', borderRadius: 6 },
+              { label: 'Pending', data: data.floor_wise.map(f => f.pending), backgroundColor: '#ef4444', borderRadius: 6 },
+            ]
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } },
+            scales: { y: { grid: { color: gridColor }, beginAtZero: true }, x: { grid: { display: false } } }
+          }
+        });
+      }
+    }
+
+    function renderReportContent(report, month, year) {
+      const monthName = MONTH_NAMES[month];
+
+      let html = `
+      <div class="panel" style="text-align:center; border-top:4px solid var(--primary);">
+        <h2 style="border-bottom:none; justify-content:center; font-size:20px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Monthly Financial Report
+        </h2>
+        <p style="color:var(--text-muted);font-size:15px;margin-top:-10px;">${monthName} ${year}</p>
+      </div>
+
+      <!-- Financial Summary -->
+      <div class="report-section panel">
+        <h3>
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          Financial Summary
+        </h3>
+        <div class="table-wrapper">
+          <table>
+            <tbody>
+              <tr><td>Opening Balance</td><td class="text-right"><strong>${formatCurrency(report.opening_balance)}</strong></td></tr>
+              <tr><td>Total Expected Collection</td><td class="text-right">${formatCurrency(report.total_expected)}</td></tr>
+              <tr><td>Total Received</td><td class="text-right" style="color:var(--success);font-weight:600;">${formatCurrency(report.total_received)}</td></tr>
+              <tr><td>Total Pending</td><td class="text-right" style="color:var(--danger);font-weight:600;">${formatCurrency(report.total_pending)}</td></tr>
+              <tr><td>Garbage Charges (Occupied Flats)</td><td class="text-right">${formatCurrency(report.total_garbage)}</td></tr>
+              <tr><td>Total Expenses</td><td class="text-right" style="color:var(--danger);">${formatCurrency(report.total_expenses)}</td></tr>
+              <tr><td>Total Arrears (Previous Months)</td><td class="text-right" style="color:var(--danger);">${formatCurrency(report.total_arrears || 0)}</td></tr>
+              <tr style="background:var(--bg-alt);font-weight:700;">
+                <td>Closing Balance</td>
+                <td class="text-right" style="font-size:18px;color:var(--primary);">${formatCurrency(report.closing_balance)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Flat Statistics -->
+      <div class="report-section panel">
+        <h3>
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          Flat Statistics
+        </h3>
+        <div class="table-wrapper">
+          <table>
+            <tbody>
+              <tr><td>Total Flats</td><td class="text-right"><strong>${report.flat_stats.total}</strong></td></tr>
+              <tr><td>Occupied</td><td class="text-right"><span class="badge badge-success">${report.flat_stats.occupied}</span></td></tr>
+              <tr><td>Vacant</td><td class="text-right"><span class="badge badge-warning">${report.flat_stats.vacant}</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Expense Breakdown -->
+      <div class="report-section panel">
+        <h3>
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          Expense Breakdown
+        </h3>`;
+
+      const catEntries = Object.entries(report.category_breakdown);
+      if (catEntries.length === 0) {
+        html += '<p class="no-data">No expenses recorded.</p>';
+      } else {
+        html += '<div class="table-wrapper"><table><thead><tr><th>Category</th><th class="text-right">Amount</th></tr></thead><tbody>';
+        for (const [cat, amt] of catEntries.sort((a, b) => b[1] - a[1])) {
+          html += `<tr><td>${cat}</td><td class="text-right"><strong>${formatCurrency(amt)}</strong></td></tr>`;
+        }
+        html += `<tr style="background:var(--bg-alt);font-weight:700;"><td>Total</td><td class="text-right">${formatCurrency(report.total_expenses)}</td></tr></tbody></table></div>`;
+      }
+      html += '</div>';
+
+      // Payment Status
+      html += `<div class="report-section panel">
+        <h3>
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+          Payment Status
+        </h3>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>#</th><th>Flat</th><th>Owner</th><th class="text-right">Expected</th><th class="text-right">Paid</th><th>Status</th><th>Date</th></tr></thead>
+            <tbody>`;
+      report.payments.forEach((p, i) => {
+        const badge = p.status === 'Paid' ? '<span class="badge badge-success">Paid</span>' : '<span class="badge badge-danger">Pending</span>';
+        const rowClass = p.status === 'Paid' ? 'row-paid' : 'row-pending';
+        html += `<tr class="${rowClass}"><td>${i + 1}</td><td><strong>${p.flat_number}</strong></td><td>${p.owner_name || '-'}</td><td class="text-right">${formatCurrency(p.amount_expected)}</td><td class="text-right">${formatCurrency(p.amount_paid)}</td><td>${badge}</td><td>${p.date_paid ? formatDate(p.date_paid) : '-'}</td></tr>`;
+      });
+      html += '</tbody></table></div></div>';
+
+      // Pending Flats
+      html += `<div class="report-section panel">
+        <h3>
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Pending Payments
+        </h3>`;
+      if (report.pending_flats.length === 0) {
+        html += '<p class="no-data">All payments collected!</p>';
+      } else {
+        html += '<div class="table-wrapper"><table><thead><tr><th>#</th><th>Flat</th><th>Owner</th><th class="text-right">Amount Due</th></tr></thead><tbody>';
+        report.pending_flats.forEach((pf, i) => {
+          html += `<tr class="row-pending"><td>${i + 1}</td><td><strong>${pf.flat_number}</strong></td><td>${pf.owner_name || '-'}</td><td class="text-right" style="color:var(--danger);font-weight:600;">${formatCurrency(pf.amount_expected)}</td></tr>`;
+        });
+        html += '</tbody></table></div>';
+      }
+      html += '</div>';
+
+      // Arrears
+      html += `<div class="report-section panel">
+        <h3>
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          Arrears / Dues (Previous Months)
+        </h3>`;
+      if (!report.arrears_by_flat || report.arrears_by_flat.length === 0) {
+        html += '<p class="no-data">No arrears from previous months.</p>';
+      } else {
+        html += '<div class="table-wrapper"><table><thead><tr><th>#</th><th>Flat</th><th>Owner</th><th class="text-right">Total Arrears</th><th class="text-right">Months</th></tr></thead><tbody>';
+        report.arrears_by_flat.forEach((af, i) => {
+          html += `<tr><td>${i + 1}</td><td><strong>${af.flat_number}</strong></td><td>${af.owner_name || '-'}</td><td class="text-right" style="color:var(--danger);font-weight:700;">${formatCurrency(af.total_arrears)}</td><td class="text-right"><span class="badge badge-danger">${af.months_pending}</span></td></tr>`;
+        });
+        html += `<tr style="background:var(--danger-bg);font-weight:700;"><td colspan="3">Grand Total</td><td class="text-right" style="color:var(--danger);">${formatCurrency(report.total_arrears)}</td><td></td></tr></tbody></table></div>`;
+      }
+      html += '</div>';
+
+      document.getElementById('reportContent').innerHTML = html;
+    }
+
+    function exportCSV() {
+      const month = getSelectedMonth('monthSelect');
+      const year = getSelectedYear('yearSelect');
+      window.open(`/api/reports/csv?month=${month}&year=${year}`, '_blank');
+      showToast('CSV download started', 'info');
+    }
+
+    function exportExcel() {
+      const month = getSelectedMonth('monthSelect');
+      const year = getSelectedYear('yearSelect');
+      window.open(`/api/reports/excel?month=${month}&year=${year}`, '_blank');
+      showToast('Excel download started', 'success');
+    }
+
+    function exportPDF() {
+      const month = getSelectedMonth('monthSelect');
+      const year = getSelectedYear('yearSelect');
+      window.open(`/api/reports/pdf?month=${month}&year=${year}`, '_blank');
+      showToast('PDF download started', 'info');
+    }
+
+    async function sendEmail() {
+      const month = getSelectedMonth('monthSelect');
+      const year = getSelectedYear('yearSelect');
+
+      showModal(
+        'Send Monthly Report',
+        `<p>Send the <strong>${MONTH_NAMES[month]} ${year}</strong> report to all configured recipients?</p>
+                 <p style="color:var(--text-muted);font-size:13px;margin-top:8px;">PDF and Excel reports will be generated and sent as email attachments.</p>`,
+        async () => {
+          const btn = document.getElementById('sendEmailBtn');
+          const text = document.getElementById('emailBtnText');
+          const spinner = document.getElementById('emailSpinner');
+
+          btn.disabled = true;
+          text.textContent = 'Sending...';
+          spinner.style.display = 'inline-block';
+
+          try {
+            const result = await apiPost('/api/reports/send-email', { month, year });
+            if (result && result.success) {
+              showToast(result.message, 'success');
+            } else {
+              showToast('Failed to send: ' + (result?.error || 'Unknown error'), 'error');
+            }
+          } catch (err) {
+            showToast('Email sending failed', 'error');
+          } finally {
+            btn.disabled = false;
+            text.textContent = 'Send to Mail';
+            spinner.style.display = 'none';
+          }
+        },
+        'Send Email',
+        'btn-primary'
+      );
+    }
+  </script>
+</body>
+
+</html>

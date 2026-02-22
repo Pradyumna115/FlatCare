@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlatCare – Dashboard</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./css/style.css">
+</head>
+
+<body>
+
+    <!-- Page content (moved into sidebar shell by app.js) -->
+    <div id="pageContent" style="display:none;">
+
+        <!-- Month and Initialize controls in page -->
+        <div class="page-header">
+            <div class="month-selector">
+                <select id="monthSelect"></select>
+                <select id="yearSelect"></select>
+                <button class="btn btn-primary" onclick="loadDashboard()">
+                    Load
+                </button>
+            </div>
+            <div class="flex-center" style="gap:8px;">
+                <button class="btn btn-success" id="initBtn" onclick="initializeMonth()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                    Initialize Month
+                </button>
+                <button class="btn btn-primary" onclick="finalizeMonth()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    Finalize Updates
+                </button>
+            </div>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="stat-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22"
+                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="1" x2="12" y2="23" />
+                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                    </svg></div>
+                <div class="stat-label">Opening Balance</div>
+                <div class="stat-value" id="openingBalance">₹0</div>
+            </div>
+            <div class="stat-card green">
+                <div class="stat-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22"
+                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                        <polyline points="17 6 23 6 23 12" />
+                    </svg></div>
+                <div class="stat-label">Total Received</div>
+                <div class="stat-value" id="totalReceived">₹0</div>
+            </div>
+            <div class="stat-card red">
+                <div class="stat-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22"
+                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="8" x2="12" y2="12" />
+                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg></div>
+                <div class="stat-label">Total Pending</div>
+                <div class="stat-value" id="totalPending">₹0</div>
+            </div>
+            <div class="stat-card orange">
+                <div class="stat-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22"
+                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+                        <line x1="1" y1="10" x2="23" y2="10" />
+                    </svg></div>
+                <div class="stat-label">Total Expenses</div>
+                <div class="stat-value" id="totalExpenses">₹0</div>
+            </div>
+            <div class="stat-card teal">
+                <div class="stat-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22"
+                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    </svg></div>
+                <div class="stat-label">Closing Balance</div>
+                <div class="stat-value" id="closingBalance">₹0</div>
+            </div>
+            <div class="stat-card purple">
+                <div class="stat-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22"
+                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path
+                            d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                        <line x1="12" y1="9" x2="12" y2="13" />
+                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg></div>
+                <div class="stat-label">Total Arrears</div>
+                <div class="stat-value" id="totalArrears">₹0</div>
+            </div>
+        </div>
+
+        <!-- Flat Stats Row -->
+        <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+            <div class="stat-card">
+                <div class="stat-label">Total Flats</div>
+                <div class="stat-value" id="totalFlats">0</div>
+            </div>
+            <div class="stat-card green">
+                <div class="stat-label">Occupied</div>
+                <div class="stat-value" id="occupiedFlats">0</div>
+            </div>
+            <div class="stat-card orange">
+                <div class="stat-label">Vacant</div>
+                <div class="stat-value" id="vacantFlats">0</div>
+            </div>
+        </div>
+
+        <!-- Pending Payments -->
+        <div class="panel">
+            <h2>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                Pending Payments
+            </h2>
+            <div id="pendingList">
+                <p class="no-data">Loading...</p>
+            </div>
+        </div>
+
+        <!-- Arrears Panel -->
+        <div class="panel">
+            <h2>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2">
+                    <path
+                        d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+                Arrears / Dues (Previous Months)
+            </h2>
+            <div id="arrearsList">
+                <p class="no-data">Loading...</p>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="./js/app.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            buildAppShell('Dashboard');
+            populateMonthSelector('monthSelect', 'yearSelect');
+            loadDashboard();
+        });
+
+        async function loadDashboard() {
+            const month = getSelectedMonth('monthSelect');
+            const year = getSelectedYear('yearSelect');
+
+            const [data, arrearsData] = await Promise.all([
+                apiGet(`/api/dashboard?month=${month}&year=${year}`),
+                apiGet(`/api/arrears?month=${month}&year=${year}`)
+            ]);
+
+            if (!data) return;
+
+            if (!data.is_initialized) {
+                document.getElementById('pendingList').innerHTML =
+                    '<p class="no-data">This month has not been initialized yet. Click "Initialize Month" above.</p>';
+                document.getElementById('arrearsList').innerHTML = '';
+                return;
+            }
+
+            // Animate stat values
+            animateCounter(document.getElementById('openingBalance'), data.opening_balance || 0);
+            animateCounter(document.getElementById('totalReceived'), data.total_received || 0);
+            animateCounter(document.getElementById('totalPending'), data.total_pending || 0);
+            animateCounter(document.getElementById('totalExpenses'), data.total_expenses || 0);
+            animateCounter(document.getElementById('closingBalance'), data.closing_balance || 0);
+            animateCounter(document.getElementById('totalArrears'), (arrearsData ? arrearsData.total_arrears : 0));
+
+            // Flat stats
+            animateNumber(document.getElementById('totalFlats'), data.flat_stats?.total || 0);
+            animateNumber(document.getElementById('occupiedFlats'), data.flat_stats?.occupied || 0);
+            animateNumber(document.getElementById('vacantFlats'), data.flat_stats?.vacant || 0);
+
+            // Pending list
+            const pendingDiv = document.getElementById('pendingList');
+            if (!data.pending_flats || data.pending_flats.length === 0) {
+                pendingDiv.innerHTML = '<p class="no-data"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="20 6 9 17 4 12"/></svg><br>All payments collected!</p>';
+            } else {
+                let html = '<div class="table-wrapper"><table><thead><tr><th>Flat</th><th>Owner</th><th class="text-right">Amount Due</th></tr></thead><tbody>';
+                for (const pf of data.pending_flats) {
+                    html += `<tr class="row-pending"><td><strong>${pf.flat_number}</strong></td><td>${pf.owner_name || '-'}</td><td class="text-right" style="color:var(--danger);font-weight:600;">${formatCurrency(pf.amount_expected)}</td></tr>`;
+                }
+                html += '</tbody></table></div>';
+                pendingDiv.innerHTML = html;
+            }
+
+            // Arrears
+            const arrearsDiv = document.getElementById('arrearsList');
+            if (!arrearsData || !arrearsData.arrears_by_flat || arrearsData.arrears_by_flat.length === 0) {
+                arrearsDiv.innerHTML = '<p class="no-data"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="20 6 9 17 4 12"/></svg><br>No arrears from previous months.</p>';
+            } else {
+                let html = '<div class="table-wrapper"><table><thead><tr><th>Flat</th><th>Owner</th><th class="text-right">Total Arrears</th><th class="text-right">Months Pending</th></tr></thead><tbody>';
+                for (const af of arrearsData.arrears_by_flat) {
+                    html += `<tr><td><strong>${af.flat_number}</strong></td><td>${af.owner_name || '-'}</td><td class="text-right" style="color:var(--danger);font-weight:700;">${formatCurrency(af.total_arrears)}</td><td class="text-right"><span class="badge badge-danger">${af.months_pending}</span></td></tr>`;
+                }
+                html += `<tr style="font-weight:700;background:var(--danger-bg);"><td colspan="2">Grand Total Arrears</td><td class="text-right" style="color:var(--danger);">${formatCurrency(arrearsData.total_arrears)}</td><td></td></tr>`;
+                html += '</tbody></table></div>';
+                arrearsDiv.innerHTML = html;
+            }
+        }
+
+        async function initializeMonth() {
+            const month = getSelectedMonth('monthSelect');
+            const year = getSelectedYear('yearSelect');
+            const monthName = MONTH_NAMES[month];
+
+            showModal(
+                'Initialize Month',
+                `<p>Are you sure you want to initialize <strong>${monthName} ${year}</strong>?</p><p style="color:var(--text-muted);font-size:13px;margin-top:8px;">This will create payment entries for all flats.</p>`,
+                async () => {
+                    const result = await apiPost(`/api/months/initialize?month=${month}&year=${year}`, {});
+                    if (result) {
+                        showToast(`${monthName} ${year} initialized successfully!`, 'success');
+                        loadDashboard();
+                    }
+                },
+                'Initialize',
+                'btn-success'
+            );
+        }
+        async function finalizeMonth() {
+            const month = getSelectedMonth('monthSelect');
+            const year = getSelectedYear('yearSelect');
+            const monthName = MONTH_NAMES[month];
+
+            showModal(
+                'Finalize Monthly Updates',
+                `<p>Finalize all updates for <strong>${monthName} ${year}</strong>?</p>
+                 <p style="color:var(--text-muted);font-size:13px;margin-top:8px;">This will recalculate the monthly summary and sync the Excel file. You can still make changes after finalizing.</p>`,
+                async () => {
+                    const result = await apiPost('/api/months/finalize', { month, year });
+                    if (result && result.success) {
+                        showToast(`${monthName} ${year} finalized! Excel file updated.`, 'success');
+                        loadDashboard();
+                    }
+                },
+                'Finalize',
+                'btn-primary'
+            );
+        }
+    </script>
+</body>
+
+</html>

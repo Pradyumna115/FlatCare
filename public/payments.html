@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlatCare – Payments</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./css/style.css">
+</head>
+
+<body>
+
+    <div id="pageContent" style="display:none;">
+        <div class="page-header">
+            <div class="month-selector">
+                <select id="monthSelect"></select>
+                <select id="yearSelect"></select>
+                <button class="btn btn-primary" onclick="loadPayments()">Load</button>
+            </div>
+            <div class="flex-center">
+                <div class="search-box">
+                    <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                    <input type="text" id="searchInput" placeholder="Search flat...">
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-grid" id="paymentStats">
+            <div class="stat-card green">
+                <div class="stat-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22"
+                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="20 6 9 17 4 12" />
+                    </svg></div>
+                <div class="stat-label">Total Collected</div>
+                <div class="stat-value" id="totalCollected">₹0</div>
+            </div>
+            <div class="stat-card red">
+                <div class="stat-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22"
+                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="8" x2="12" y2="12" />
+                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg></div>
+                <div class="stat-label">Total Pending</div>
+                <div class="stat-value" id="totalPending">₹0</div>
+            </div>
+            <div class="stat-card orange">
+                <div class="stat-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22"
+                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path
+                            d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                        <line x1="12" y1="9" x2="12" y2="13" />
+                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg></div>
+                <div class="stat-label">Total Arrears</div>
+                <div class="stat-value" id="totalArrears">₹0</div>
+            </div>
+        </div>
+
+        <!-- Payments Table -->
+        <div class="panel" style="padding:0; overflow:hidden;">
+            <div class="table-wrapper">
+                <table id="paymentsTable">
+                    <thead>
+                        <tr>
+                            <th>Flat</th>
+                            <th>Owner</th>
+                            <th class="text-right">Base (₹)</th>
+                            <th class="text-right">Garbage (₹)</th>
+                            <th class="text-right">Total Expected</th>
+                            <th class="text-right">Paid</th>
+                            <th class="text-right">Arrears</th>
+                            <th>Status</th>
+                            <th>Date Paid</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="paymentsBody">
+                        <tr>
+                            <td colspan="8">
+                                <p class="no-data">Loading...</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="./js/app.js"></script>
+    <script>
+        let paymentsData = [];
+        let arrearsMap = {};
+
+        document.addEventListener('DOMContentLoaded', () => {
+            buildAppShell('Payments');
+            populateMonthSelector('monthSelect', 'yearSelect');
+            loadPayments();
+            setupTableSearch('searchInput', 'paymentsTable');
+        });
+
+        async function loadPayments() {
+            const month = getSelectedMonth('monthSelect');
+            const year = getSelectedYear('yearSelect');
+
+            const [data, arrearsData] = await Promise.all([
+                apiGet(`/api/payments?month=${month}&year=${year}`),
+                apiGet(`/api/arrears?month=${month}&year=${year}`)
+            ]);
+
+            if (!data) return;
+
+            paymentsData = data.payments || [];
+            arrearsMap = {};
+
+            if (arrearsData && arrearsData.arrears_by_flat) {
+                for (const af of arrearsData.arrears_by_flat) {
+                    arrearsMap[af.flat_id] = af.total_arrears;
+                }
+            }
+
+            // Stats
+            animateCounter(document.getElementById('totalCollected'), data.total_received || 0);
+            animateCounter(document.getElementById('totalPending'), data.total_pending || 0);
+            animateCounter(document.getElementById('totalArrears'), arrearsData ? arrearsData.total_arrears : 0);
+
+            renderPayments();
+        }
+
+        function renderPayments() {
+            const tbody = document.getElementById('paymentsBody');
+
+            if (paymentsData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8"><p class="no-data">No payments found. Initialize this month from the Dashboard.</p></td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = paymentsData.map(p => {
+                const isPaid = p.status === 'Paid';
+                const badge = isPaid
+                    ? '<span class="badge badge-success">Paid</span>'
+                    : '<span class="badge badge-danger">Pending</span>';
+                const rowClass = isPaid ? 'row-paid' : 'row-pending';
+                const flatArrears = arrearsMap[p.flat_id] || 0;
+                const arrearsStyle = flatArrears > 0 ? 'color:var(--danger);font-weight:700;' : '';
+
+                const totalExpected = (p.amount_expected || 0) + (p.garbage_charge || 0);
+
+                return `<tr class="${rowClass}">
+          <td><strong>${p.flat_number}</strong></td>
+          <td>${p.owner_name || '-'}</td>
+          <td class="text-right">${formatCurrency(p.amount_expected)}</td>
+          <td class="text-right">${formatCurrency(p.garbage_charge)}</td>
+          <td class="text-right" style="font-weight: 600;">${formatCurrency(totalExpected)}</td>
+          <td class="text-right">${formatCurrency(p.amount_paid)}</td>
+          <td class="text-right" style="${arrearsStyle}">${flatArrears > 0 ? formatCurrency(flatArrears) : '-'}</td>
+          <td>${badge}</td>
+          <td>${p.date_paid ? formatDate(p.date_paid) : '-'}</td>
+          <td class="text-center">
+            ${isPaid ? `
+              <button class="btn btn-ghost btn-sm" id="btn-pending-${p.id}" onclick="markPending(${p.id})" title="Mark Pending">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+              </button>
+            ` : `
+              <button class="btn btn-success btn-sm" id="btn-paid-${p.id}" onclick="markPaid(${p.id})" title="Mark Paid">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                Paid
+              </button>
+            `}
+          </td>
+        </tr>`;
+            }).join('');
+        }
+
+        async function markPaid(paymentId) {
+            const btn = document.getElementById(`btn-paid-${paymentId}`);
+            if (btn) btn.disabled = true;
+
+            const today = new Date().toISOString().split('T')[0];
+            const p = paymentsData.find(x => x.id === paymentId);
+            const totalExpected = (p.amount_expected || 0) + (p.garbage_charge || 0);
+
+            try {
+                const result = await apiPut(`/api/payments/${paymentId}`, {
+                    amount_paid: totalExpected,
+                    status: 'Paid',
+                    date_paid: today
+                });
+                if (result) {
+                    showToast(`${p.flat_number} marked as Paid`, 'success');
+                    loadPayments();
+                }
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        async function markPending(paymentId) {
+            const p = paymentsData.find(x => x.id === paymentId);
+            showModal(
+                'Revert Payment',
+                `<p>Mark <strong>${p.flat_number}</strong> as pending?</p>`,
+                async () => {
+                    const btn = document.getElementById('modalConfirmBtn');
+                    if (btn) btn.disabled = true;
+                    try {
+                        const result = await apiPut(`/api/payments/${paymentId}`, {
+                            amount_paid: 0,
+                            status: 'Pending',
+                            date_paid: null
+                        });
+                        if (result) {
+                            showToast(`${p.flat_number} reverted to Pending`, 'warning');
+                            loadPayments();
+                        }
+                    } finally {
+                        if (btn) btn.disabled = false;
+                    }
+                },
+                'Revert',
+                'btn-warning'
+            );
+        }
+    </script>
+</body>
+
+</html>
